@@ -350,8 +350,8 @@ function(godotcpp_generate)
     set_target_properties(
         godot-cpp
         PROPERTIES
-            CXX_STANDARD 17
-            CXX_EXTENSIONS OFF
+            CXX_STANDARD 20
+            CXX_EXTENSIONS ON
             CXX_VISIBILITY_PRESET ${GODOTCPP_SYMBOL_VISIBILITY}
 
             COMPILE_WARNING_AS_ERROR ${GODOTCPP_WARNING_AS_ERROR}

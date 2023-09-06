@@ -2195,12 +2195,35 @@ def generate_utility_functions(api, output_dir):
 
     header.append("};")
     header.append("")
+    header.append("inline namespace Utility {")
+
+    for function in api["utility_functions"]:
+        if "is_vararg" in function and function["is_vararg"]: continue
+        if function["name"] in ["is_instance_valid"]: continue
+        has_return = "return_type" in function and function["return_type"] != "void"
+
+        function_signature = make_signature("UtilityFunctions", function, for_header=True, inline=True)
+        function_call = "UtilityFunctions::" + escape_identifier(function["name"]) + "("
+        arguments = []
+        if "arguments" in function:
+            for argument in function["arguments"]:
+                arguments.append("p_" + argument["name"])
+        if vararg:
+            arguments.append("args...")
+        function_call += ", ".join(arguments) + ");"
+        if has_return: function_call = "return " + function_call
+        header.append("\t" + function_signature + " {")
+        header.append("\t\t" + function_call)
+        header.append("\t}")
+
+    header.append("} // namespace godot::Utility")
     header.append("} // namespace godot")
     header.append("")
     header.append(f"#endif // ! {header_guard}")
 
     with header_filename.open("w+", encoding="utf-8") as header_file:
         header_file.write("\n".join(header))
+
 
     # Generate source.
 
@@ -2365,7 +2388,7 @@ def get_encoded_arg(arg_name, type_name, type_meta):
 
 
 def make_signature(
-    class_name, function_data, for_header=False, use_template_get_node=True, for_builtin=False, static=False
+    class_name, function_data, for_header=False, use_template_get_node=True, for_builtin=False, static=False, inline=False
 ):
     function_signature = ""
 
@@ -2377,6 +2400,9 @@ def make_signature(
 
         if static:
             function_signature += "static "
+
+        if inline:
+            function_signature += "inline "
 
     return_type = "void"
     return_meta = None
@@ -2429,6 +2455,7 @@ def make_varargs_template(
     class_befor_signature="",
     with_indent=True,
     for_builtin_classes=False,
+    inline=False,
 ):
     result = []
 
@@ -2438,6 +2465,9 @@ def make_varargs_template(
 
     if static:
         function_signature += "static "
+
+    if inline:
+        function_signature += "inline "
 
     return_type = "void"
     return_meta = None

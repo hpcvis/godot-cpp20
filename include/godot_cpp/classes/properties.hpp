@@ -293,26 +293,6 @@ struct Property : PropertyOperations<Property<T, Getter, Setter>> {
 	PROPERTY_CORE(Getter, Setter)
 };
 
-
-// Helper that defines all the different permutations of access to a function based on if the property has a getter (and a setter) defined
-#define GODOT_PROPERTY_WRAPPED_FUNCTION(name, self) template<typename... Args> requires (getsetable<self> && !std::is_same_v<detail::ReturnType<&value_type::name>::type, void>) auto name(Args... args) { auto temp = get(); auto ret = temp.name(std::forward<Args>(args)...); set(temp); return ret; }\
-	template<typename... Args> requires (!getsetable<self> && getable<self> && !std::is_same_v<detail::ReturnType<&value_type::name>::type, void>) auto name(Args... args) const { const auto temp = get(); auto ret = temp.name(std::forward<Args>(args)...); return ret; }\
-	template<typename... Args> requires (getsetable<self> && std::is_same_v<detail::ReturnType<&value_type::name>::type, void>) void name(Args... args) { auto temp = get(); temp.name(std::forward<Args>(args)...); set(temp); }\
-	template<typename... Args> requires (!getsetable<self> && getable<self> && std::is_same_v<detail::ReturnType<&value_type::name>::type, void>) void name(Args... args) const { const auto temp = get(); temp.name(std::forward<Args>(args)...); }
-
-// Helper that creates the different permutations of a property that copies if there is a getter or a setter for the parent property
-#define GODOT_PROPERTY_WRAPPED_PROPERTY_NO_GET_SET(type, name, self) Property<type, &self::get_##name, &self::set_##name> name() requires getsetable<self> { return this; }\
-	Property<type, &self::get_##name> name() requires (!getsetable<self> && getable<self>) { return this; }\
-	Property<type, nullptr, &self::set_##name> name() requires (!getsetable<self> && setable<self>) { return this; }\
-    const Property<type, &Self::get_##name, &Self::set_##name> name() const requires getsetable<Self> { return this; }\
-	const Property<type, &Self::get_##name> name() const requires (!getsetable<Self> && getable<Self>) { return this; }
-
-// Helper that creates the different permutations of a property that copies if there is a getter or a setter for the parent property
-// Also defines get_name and set_name methods which get and set the property 
-#define GODOT_PROPERTY_WRAPPED_PROPERTY(type, name, self) type get_##name() const requires getable<self> { return get().name; }\
-	type set_##name(type value) requires getsetable<self> { auto temp = get(); temp.name = value; (void)set(temp); return temp.name; }\
-	GODOT_PROPERTY_WRAPPED_PROPERTY_NO_GET_SET(type, name, self)
-
 } // namespace godot
 
 #endif // GODOT_PROPERTIES_HPP

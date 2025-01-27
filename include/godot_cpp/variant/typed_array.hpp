@@ -83,11 +83,17 @@ public:
 		_FORCE_INLINE_ TypedArray() {                                                                            \
 			set_typed(m_variant_type, StringName(), Variant());                                                  \
 		}                                                                                                        \
-	};
-
-// All Variant::OBJECT types are intentionally omitted from this list because they are handled by
-// the unspecialized TypedArray definition.
-MAKE_TYPED_ARRAY(bool, Variant::BOOL)
+	};                                                                                                           \
+\
+	template <auto Getter, auto Setter> PROPERTY_TEMPLATE_CONSTRAINT(Getter, Setter)                             \
+	class Property<TypedArray<m_type>, Getter, Setter> : public Property<Array, Getter, Setter>, public PropertyOperations<Property<TypedArray<m_type>, Getter, Setter>> {\
+		using T = TypedArray<m_type>;                                                                              \
+		using Self = Property<TypedArray<m_type>, Getter, Setter>;                                                 \
+	public:                                                                                                      \
+		PROPERTY_CORE(Getter, Setter)                                                                            \
+	};	
+	
+MAKE_TYPED_ARRAY(bool, Variant::BOOL)   
 MAKE_TYPED_ARRAY(uint8_t, Variant::INT)
 MAKE_TYPED_ARRAY(int8_t, Variant::INT)
 MAKE_TYPED_ARRAY(uint16_t, Variant::INT)

@@ -1624,6 +1624,11 @@ def generate_engine_class_header(class_api, used_classes, fully_used_classes, us
             result.append(f'\tstatic const {value["type"]} {value["name"]} = {value["value"]};')
         result.append("")
 
+    if "signals" in class_api:
+        for signal in class_api["signals"]:
+            result.append(f"\tSignal {signal['name']}() {{ return {{this, \"{signal['name']}\"}}; }}")
+        result.append("")
+
     if is_singleton:
         result.append(f"\tstatic {class_name} *get_singleton();")
         result.append("")
@@ -2305,6 +2310,87 @@ def generate_utility_functions(api, output_dir):
 
     with source_filename.open("w+", encoding="utf-8") as source_file:
         source_file.write("\n".join(source))
+
+
+def generate_property_version(api, listed_methods=None):
+    result = []
+    for i in range(0, 3): result.append("")
+
+    class_name = api["name"]
+    snake_class_name = camel_to_snake(class_name).upper()
+
+    if "inherits" in api:
+        result.append("template <auto Getter, auto Setter> PROPERTY_TEMPLATE_CONSTRAINT(Getter, Setter)")
+        result.append(f"class Property<{class_name}, Getter, Setter> : public Property<{api['inherits']}, Getter, Setter>, public PropertyOperations<Property<{class_name}, Getter, Setter>> {{")
+        result.append(f"\tusing T = {class_name};")
+        result.append(f"\tusing Self = Property<{class_name}, Getter, Setter>;")
+        result.append("public:")
+        result.append("\tPROPERTY_CORE(Getter, Setter)")
+        result.append("")
+    else:
+        result.append("template <auto Getter, auto Setter> PROPERTY_TEMPLATE_CONSTRAINT(Getter, Setter)")
+        result.append(f"class Property<{class_name}, Getter, Setter> : public PropertyOperations<Property<{class_name}, Getter, Setter>> {{")
+        result.append(f"\tusing T = {class_name};")
+        result.append(f"\tusing Self = Property<{class_name}, Getter, Setter>;")
+        result.append("public:")
+        result.append("\tPROPERTY_CORE(Getter, Setter)")
+        result.append("")
+
+
+    if "signals" in api:
+        for signal in api["signals"]:
+            result.append(f"\tGODOT_PROPERTY_WRAPPED_FUNCTION({signal['name']}, Self)")
+        result.append("")
+
+    if "members" in api:
+        for member in api["members"]:
+            result.append(f"\tGODOT_PROPERTY_WRAPPED_PROPERTY({member['meta']}, {member['member']}, Self)")
+        result.append("")
+
+    if "properties" in api:
+        for prop in api["properties"]:
+            prop_type = prop["type"]
+            if "getter" in prop and "methods" in api:
+                if listed_methods is not None and prop["getter"] not in listed_methods: continue
+                method_data = next((m for m in api["methods"] if m['name'] == prop['getter']), None)
+                if method_data is not None:
+                    return_type = method_data["return_value"]["type"]
+                    return_meta = method_data["return_value"]["meta"] if "meta" in method_data["return_value"] else None
+                    prop_type = cleanup_property_type(correct_type(return_type, return_meta))
+
+            name = prop["name"] if prop["name"] != "operator" else prop["name"] + "_"
+            result.append(f"\tGODOT_PROPERTY_WRAPPED_PROPERTY_CALL({cleanup_property_type(prop_type)}, {name}, Self)")
+        result.append("")
+
+    if "methods" in api:
+        for method in api["methods"]:
+            if "is_static" in method and method["is_static"]: continue
+            if method["name"] == "get_node": continue
+            name = method["name"] if method["name"] != "new" else method["name"] + "_"
+            
+            methods = list((m for m in api["methods"] if m['name'] == method['name']))
+            if len(methods) > 1\
+                or method["name"] in ["get_singleton", "store_buffer", "get_buffer"]\
+                or "is_vararg" in method and method["is_vararg"]:
+
+                type_ = "void"
+                if "return_value" in method: 
+                    if "return_meta" in method["return_value"]: type_ = correct_type(method["return_value"]["type"], method["return_value"]["return_meta"])
+                    else: type_ = correct_type(method["return_value"]["type"])
+                elif "return_type" in method: type_ = correct_type(method["return_type"])
+                if type_ == "void":
+                    result.append(f"\ttemplate<typename... Args> requires (getsetable<Self>) void {name}(Args... args) {{ auto temp = get(); temp.{name}(std::forward<Args>(args)...); set(temp); }}")
+                    result.append(f"\ttemplate<typename... Args> requires (!getsetable<Self> && getable<Self>) void {name}(Args... args) const {{ const auto temp = get(); temp.{name}(std::forward<Args>(args)...); }}")
+                else:
+                    result.append(f"\ttemplate<typename... Args> requires (getsetable<Self>) auto {name}(Args... args) {{ auto temp = get(); auto ret = temp.{name}(std::forward<Args>(args)...); set(temp); return ret; }}")
+                    result.append(f"\ttemplate<typename... Args> requires (!getsetable<Self> && getable<Self>) auto {name}(Args... args) const {{ const auto temp = get(); auto ret = temp.{name}(std::forward<Args>(args)...); return ret; }}")
+            else: result.append(f"\tGODOT_PROPERTY_WRAPPED_FUNCTION({name}, Self)")
+        result.append("")
+
+    result.append("")
+    result.append("};")
+
+    return result
 
 
 # Helper functions.

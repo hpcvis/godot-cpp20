@@ -77,9 +77,9 @@ struct _NO_DISCARD_ Quaternion {
 	Quaternion spherical_cubic_interpolate_in_time(const Quaternion &p_b, const Quaternion &p_pre_a, const Quaternion &p_post_b, real_t p_weight, real_t p_b_t, real_t p_pre_a_t, real_t p_post_b_t) const;
 
 	Vector3 get_axis() const;
-	real_t get_angle() const;
+	Math::Radian get_angle() const;
 
-	_FORCE_INLINE_ void get_axis_angle(Vector3 &r_axis, real_t &r_angle) const {
+	_FORCE_INLINE_ void get_axis_angle(Vector3 &r_axis, Math::Radian &r_angle) const {
 		r_angle = 2 * Math::acos(w);
 		real_t r = ((real_t)1) / Math::sqrt(1 - w * w);
 		r_axis.x = x * r;
